@@ -1,6 +1,8 @@
 
 # Displays all nodes in the cluster including kubernetes version info
 alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
+# Force a deletion
+alias deletef="k delete --grace-period=0 --force"
 
 # Pick a random node in Ready state
 get-random-node() {
