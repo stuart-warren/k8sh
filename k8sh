@@ -75,7 +75,7 @@ k8sh_init() {
     source ~/.bash_profile
   fi
   echo "Gathering current kubectl state..."
-  export KUBECTL_NAMESPACE=${parameter-default}
+  export KUBECTL_NAMESPACE=${DEFAULT_NAMESPACE-default}
 
   echo "Making aliases..."
   alias kubectl="kubectl --namespace \$KUBECTL_NAMESPACE"
@@ -124,7 +124,7 @@ k8sh_init() {
   reloadExtensions
 
   # Set up PS1 prompt
-  export PS1="($PS_CONTEXT_COLOR\$(ct)$PS_RESTORE/$PS_NAMESPACE_COLOR\$KUBECTL_NAMESPACE$PS_RESTORE) \W ${PS_LPURPLE}\$${PS_RESTORE} "
+  export PS1="($PS_CONTEXT_COLOR\$(ct)$PS_RESTORE/$PS_NAMESPACE_COLOR\$KUBECTL_NAMESPACE$PS_RESTORE) ${PS1}"
 
   echo ""
   echo -e "Context: $CONTEXT_COLOR$(ct)$RESTORE"

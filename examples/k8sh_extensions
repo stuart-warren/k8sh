@@ -2,15 +2,51 @@
 # Displays all nodes in the cluster including kubernetes version info
 alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
 
+# Pick a random node in Ready state
+get-random-node() {
+  k get nodes | grep ' Ready' | awk '{ print $1 }' | shuf -n 1
+}
 
 # Runs a busybox container (optionally selecting the a specific node to run on)
 # and shells into it.
-busybox() {
-  delete po/busybox
+toolbox() {
+  delete po/toolbox
+  NODETOUSE="$(get-random-node)"
   OVERRIDE_PARAM=""
   if [[ $1 ]]; then
     echo "Restricting pod to node: $1"
-    OVERRIDE_PARAM="{ \"spec\": { \"nodeSelector\": { \"kubernetes.io/hostname\": \"$1\" } } }"
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$1\" } }"
+  else
+    echo "Restricting pod to node: $NODETOUSE"
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\" } }"
   fi
-  k run -i --tty busybox --image=busybox --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+  k run -i --tty toolbox --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+}
+
+# Runs a temporary kube-scheduler
+# Assumes self hosting setup
+temp-scheduler() {
+  delete pod/temp-scheduler
+  NODETOUSE="$(get-random-node)"
+  if [[ $1 ]]; then
+    NODETOUSE=$1
+  fi
+  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-scheduler", "namespace": "kube-system"}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+}
+
+# Runs a temporary kube-controller-manager
+# Assumes self hosting setup
+temp-controller-manager() {
+  delete pod/temp-controller-manager
+  NODETOUSE="$(get-random-node)"
+  if [[ $1 ]]; then
+    NODETOUSE=$1
+  fi
+  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system"}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+}
+
+# removes the temporary scheduler and controller manager when not required
+delete-temp-components() {
+  delete pod/temp-scheduler
+  delete pod/temp-controller-manager
 }
