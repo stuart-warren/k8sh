@@ -2,6 +2,8 @@
 
 # Displays all nodes in the cluster including kubernetes version info
 alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
+# Force a deletion
+alias deletef="k delete --grace-period=0 --force"
 
 
 # Runs a busybox container (optionally selecting the a specific node to run on)
