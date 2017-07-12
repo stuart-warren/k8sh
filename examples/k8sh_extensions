@@ -21,7 +21,9 @@ alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addres
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
 # pods with colours
-alias p="k get pods -o wide | highlight green 'Running'"
+pods() {
+  k get pods $@ | highlight green 'Running'
+}
 
 # Pick a random node in Ready state
 get-random-node() {
