@@ -1,9 +1,31 @@
+<<<<<<< HEAD
 #!/usr/bin/env bash
+=======
+# run reloadExtensions to reload
+
+# add highlighting for substrings
+highlight() {
+    declare -A fg_color_map
+    fg_color_map[black]=30
+    fg_color_map[red]=31
+    fg_color_map[green]=32
+    fg_color_map[yellow]=33
+    fg_color_map[blue]=34
+    fg_color_map[magenta]=35
+    fg_color_map[cyan]=36
+     
+    fg_c=$(echo -e "\e[1;${fg_color_map[$1]}m")
+    c_rs=$'\e[0m'
+    sed -u s"/$2/$fg_c\0$c_rs/g"
+}
+>>>>>>> add hightlight to pods
 
 # Displays all nodes in the cluster including kubernetes version info
 alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
+# pods with colours
+alias p="k get pods -o wide | highlight green 'Running'"
 
 
 # Runs a busybox container (optionally selecting the a specific node to run on)
@@ -13,7 +35,25 @@ busybox() {
   OVERRIDE_PARAM=""
   if [[ $1 ]]; then
     echo "Restricting pod to node: $1"
+<<<<<<< HEAD
     OVERRIDE_PARAM="{ \"spec\": { \"nodeSelector\": { \"kubernetes.io/hostname\": \"$1\" } } }"
+=======
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$1\" } }"
+  else
+    echo "Restricting pod to node: $NODETOUSE"
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\" } }"
+  fi
+  k run -i --tty toolbox --limits='cpu=200m,memory=512Mi' --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+}
+
+# Runs a temporary kube-scheduler
+# Assumes self hosting setup
+temp-scheduler() {
+  delete pod/temp-scheduler
+  NODETOUSE="$(get-random-node)"
+  if [[ $1 ]]; then
+    NODETOUSE=$1
+>>>>>>> add hightlight to pods
   fi
   k run -i --tty busybox --image=busybox --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
 }
