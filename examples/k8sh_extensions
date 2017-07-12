@@ -1,8 +1,27 @@
+# run reloadExtensions to reload
+
+# add highlighting for substrings
+highlight() {
+    declare -A fg_color_map
+    fg_color_map[black]=30
+    fg_color_map[red]=31
+    fg_color_map[green]=32
+    fg_color_map[yellow]=33
+    fg_color_map[blue]=34
+    fg_color_map[magenta]=35
+    fg_color_map[cyan]=36
+     
+    fg_c=$(echo -e "\e[1;${fg_color_map[$1]}m")
+    c_rs=$'\e[0m'
+    sed -u s"/$2/$fg_c\0$c_rs/g"
+}
 
 # Displays all nodes in the cluster including kubernetes version info
 alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
+# pods with colours
+alias p="k get pods -o wide | highlight green 'Running'"
 
 # Pick a random node in Ready state
 get-random-node() {
@@ -22,7 +41,7 @@ toolbox() {
     echo "Restricting pod to node: $NODETOUSE"
     OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\" } }"
   fi
-  k run -i --tty toolbox --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+  k run -i --tty toolbox --limits='cpu=200m,memory=512Mi' --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
 }
 
 # Runs a temporary kube-scheduler
