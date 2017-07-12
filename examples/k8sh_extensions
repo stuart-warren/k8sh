@@ -13,7 +13,7 @@ highlight() {
     fg_color_map[blue]=34
     fg_color_map[magenta]=35
     fg_color_map[cyan]=36
-     
+
     fg_c=$(echo -e "\e[1;${fg_color_map[$1]}m")
     c_rs=$'\e[0m'
     sed -u s"/$2/$fg_c\0$c_rs/g"
@@ -21,7 +21,7 @@ highlight() {
 >>>>>>> add hightlight to pods
 
 # Displays all nodes in the cluster including kubernetes version info
-alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion"
+alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion,Health:.status.conditions[3].message"
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
 # pods with colours
