@@ -25,7 +25,9 @@ alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addres
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
 # pods with colours
-alias p="k get pods -o wide | highlight green 'Running'"
+pods() {
+  k get pods $@ | highlight green 'Running'
+}
 
 
 # Runs a busybox container (optionally selecting the a specific node to run on)
