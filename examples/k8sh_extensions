@@ -17,7 +17,7 @@ highlight() {
 }
 
 # Displays all nodes in the cluster including kubernetes version info
-alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion,Health:.status.conditions[3].message"
+alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion,Health:.status.conditions[*].reason | highlight green 'KubeletReady' | highlight green 'KernelHasNoDeadlock' | highlight green 'KubeletHasNoDiskPressure' | highlight green 'KubeletHasSufficientMemory' | highlight green 'KubeletHasSufficientDisk'"
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
 # pods with colours
