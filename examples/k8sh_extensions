@@ -37,7 +37,8 @@ alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addres
 alias deletef="k delete --grace-period=0 --force"
 
 # Get events in order
-alias events="k get events --all-namespaces --sort-by='.metadata.creationTimestamp'"
+# alias events="k get events --all-namespaces --sort-by='{metadata.name}'"
+alias events="k get events --all-namespaces"
 
 # get images that a pod uses
 alias pod-images="k get pods -o=custom-columns=Images:.spec.containers[*].image"
