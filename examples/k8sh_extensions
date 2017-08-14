@@ -1,5 +1,19 @@
 # run reloadExtensions to reload
 
+# remove alias
+rmalias() {
+  if alias $1 2>/dev/null; then
+    unalias $1
+  fi
+}
+
+# remove function
+rmfunction() {
+  if declare -f -F $1 > /dev/null; then
+    unset -f $1
+  fi
+}
+
 # add highlighting for substrings
 highlight() {
     declare -A fg_color_map
@@ -22,8 +36,14 @@ alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addres
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
 
+# Get events in order
+alias events="k get events --all-namespaces --sort-by='.metadata.creationTimestamp'"
+
+# get images that a pod uses
+alias pod-images="k get pods -o=custom-columns=Images:.spec.containers[*].image"
+
 # pods with colours
-unalias pods
+rmalias pods
 pods() {
   k get pods $@ | highlight green 'Running'
 }
