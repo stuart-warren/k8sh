@@ -81,7 +81,7 @@ temp-scheduler() {
   if [[ $1 ]]; then
     NODETOUSE=$1
   fi
-  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-scheduler", "namespace": "kube-system"}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
 }
 
 # Runs a temporary kube-controller-manager
@@ -92,7 +92,7 @@ temp-controller-manager() {
   if [[ $1 ]]; then
     NODETOUSE=$1
   fi
-  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system"}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
 }
 
 # removes the temporary scheduler and controller manager when not required
