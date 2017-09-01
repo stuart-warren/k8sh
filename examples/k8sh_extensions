@@ -80,5 +80,22 @@ temp-scheduler() {
   if [[ $1 ]]; then
     NODETOUSE=$1
   fi
-  k run -i --tty busybox --image=busybox --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+}
+
+# Runs a temporary kube-controller-manager
+# Assumes self hosting setup
+temp-controller-manager() {
+  delete pod/temp-controller-manager
+  NODETOUSE="$(get-random-node)"
+  if [[ $1 ]]; then
+    NODETOUSE=$1
+  fi
+  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+}
+
+# removes the temporary scheduler and controller manager when not required
+delete-temp-components() {
+  delete pod/temp-scheduler
+  delete pod/temp-controller-manager
 }
