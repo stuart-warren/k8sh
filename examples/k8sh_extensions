@@ -49,6 +49,9 @@ pods() {
   k get pods $@ | highlight green 'Running'
 }
 
+alias pods?="pods -o wide | grep"
+alias nodes?="nodes | grep"
+
 # Pick a random node in Ready state
 get-random-node() {
   k get nodes | grep ' Ready' | awk '{ print $1 }' | shuf -n 1
