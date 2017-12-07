@@ -41,8 +41,10 @@ alias deletef="k delete --grace-period=0 --force"
 alias events="k get events --all-namespaces"
 
 # get images that pods use in your namespace
-alias pod-images="k get pods --no-headers -o=custom-columns=Images:.spec.containers[*].image | tr ',' '\n' | sort -u"
+alias pod-images="k get pods --no-headers -o=custom-columns=Images:.spec.containers[*].image | tr ',' '\n' | sort | uniq -c"
 alias pod-images?="pod-images | grep"
+alias pods-with-image="k get pods --no-headers -o=go-template --template='{{range .items}}{{\$pod := .metadata.name}}{{range .spec.containers}}{{\$pod}}{{\"\t\"}}{{.name}}{{\"\t\"}}{{.image }}{{\"\n\"}}{{end}}{{end}}' | sort -k 3"
+alias pods-with-image?="pods-with-image | grep"
 
 # pods with colours
 rmalias pods
