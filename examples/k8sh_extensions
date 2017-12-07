@@ -40,11 +40,11 @@ alias deletef="k delete --grace-period=0 --force"
 # alias events="k get events --all-namespaces --sort-by='{metadata.name}'"
 alias events="k get events --all-namespaces"
 
-# get images that pods use in your namespace
+# get images that pods use in your namespace with a count
 alias pod-images="k get pods --no-headers -o=custom-columns=Images:.spec.containers[*].image | tr ',' '\n' | sort | uniq -c"
-alias pod-images?="pod-images | grep"
+
+# get pods and their images sorted by image
 alias pods-with-image="k get pods --no-headers -o=go-template --template='{{range .items}}{{\$pod := .metadata.name}}{{range .spec.containers}}{{\$pod}}{{\"\t\"}}{{.name}}{{\"\t\"}}{{.image }}{{\"\n\"}}{{end}}{{end}}' | sort -k 3"
-alias pods-with-image?="pods-with-image | grep"
 
 # pods with colours
 rmalias pods
@@ -55,8 +55,11 @@ pods() {
 # add grep to pods/nodes listing, eg:
 # $ pods? -v Running
 # $ nodes? cr2
+# $ pods-with-image? hyperkube
 alias pods?="pods -o wide | grep"
 alias nodes?="nodes | grep"
+alias pod-images?="pod-images | grep"
+alias pods-with-image?="pods-with-image | grep"
 
 # Pick a random node in Ready state
 get-random-node() {
