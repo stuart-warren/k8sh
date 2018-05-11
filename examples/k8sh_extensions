@@ -31,7 +31,7 @@ highlight() {
 }
 
 # Displays all nodes in the cluster including kubernetes version info
-alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Proxy:.status.nodeInfo.kubeProxyVersion,Health:.status.conditions[*].reason,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory | highlight green 'KubeletReady' | highlight green 'KernelHasNoDeadlock' | highlight green 'KubeletHasNoDiskPressure' | highlight green 'KubeletHasSufficientMemory' | highlight green 'KubeletHasSufficientDisk'"
+alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Health:.status.conditions[*].reason,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory | highlight green 'KubeletReady' | highlight green 'KernelHasNoDeadlock' | highlight green 'KubeletHasNoDiskPressure' | highlight green 'KubeletHasSufficientMemory' | highlight green 'KubeletHasSufficientDisk'"
 
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
@@ -49,6 +49,12 @@ alias pods-with-image="k get pods --no-headers -o=go-template --template='{{rang
 rmalias pods
 pods() {
   k get pods $@ | highlight green 'Running'
+}
+
+ssh-nodes() {
+  SSH_ARGS="${@}"
+  k get nodes --no-headers -o=custom-columns=IP:.status.addresses[0].address | \
+    xargs -INODE -n1 -P1 sh -c "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ${K8S_SSH_USER-core}@NODE ${SSH_ARGS} | sed -e 's/^/NODE:\t/'"
 }
 
 # add grep to pods/nodes listing, eg:
@@ -72,10 +78,10 @@ busybox() {
   OVERRIDE_PARAM=""
   if [[ $1 ]]; then
     echo "Restricting pod to node: $1"
-    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$1\" } }"
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$1\", \"serviceAccountName\": \"kube-controller-manager\" } }"
   else
     echo "Restricting pod to node: $NODETOUSE"
-    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\" } }"
+    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\", \"serviceAccountName\": \"kube-controller-manager\" } }"
   fi
   k run -i --tty toolbox --limits='cpu=200m,memory=512Mi' --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
 }
@@ -88,7 +94,7 @@ temp-scheduler() {
   if [[ $1 ]]; then
     NODETOUSE=$1
   fi
-  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
 }
 
 # Runs a temporary kube-controller-manager
@@ -99,7 +105,7 @@ temp-controller-manager() {
   if [[ $1 ]]; then
     NODETOUSE=$1
   fi
-  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
+  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl create -f -
 }
 
 # removes the temporary scheduler and controller manager when not required
