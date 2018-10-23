@@ -54,6 +54,9 @@ alias pods-with-image="k get pods --no-headers -o=go-template --template='{{rang
 # get overall pod status report
 alias pod-report="k get pods --all-namespaces --no-headers -o=custom-columns=Status:.status.phase | sort | uniq -c | highlight green Running"
 
+# get pods that are current leaders
+alias leaders="k get ep -o json | jq '.items[].metadata.annotations[\"control-plane.alpha.kubernetes.io/leader\"] | select(.!=null)' -r | jq '.holderIdentity' -r"
+
 # pods with colours
 rmalias pods
 pods() {
@@ -83,6 +86,7 @@ alias all-pods?="all-pods -o wide | grep"
 alias nodes?="nodes | grep"
 alias pod-images?="pod-images | grep"
 alias pods-with-image?="pods-with-image | grep"
+alias leaders?="leaders | grep"
 
 # Pick a random node in Ready state
 get-random-node() {
