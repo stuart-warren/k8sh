@@ -93,6 +93,9 @@ get-random-node() {
   k get nodes | grep ' Ready' | awk '{ print $1 }' | shuf -n 1
 }
 
+# Show pods that don't have all containers ready
+alias brokenpods='k get pod --all-namespaces | grep -vE '\''([0-9]+)/\1'\'''
+
 # Runs a busybox container (optionally selecting the a specific node to run on)
 # and shells into it.
 toolbox() {
