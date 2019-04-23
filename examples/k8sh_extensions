@@ -55,7 +55,7 @@ alias pods-with-image="k get pods --no-headers -o=go-template --template='{{rang
 alias pod-report="k get pods --all-namespaces --no-headers -o=custom-columns=Status:.status.phase | sort | uniq -c | highlight green Running"
 
 # get pods that are current leaders
-alias leaders="k get ep -o json | jq '.items[].metadata.annotations[\"control-plane.alpha.kubernetes.io/leader\"] | select(.!=null)' -r | jq '.holderIdentity' -r"
+alias leaders="k get ep -o json | jq '.items[].metadata.annotations[\"control-plane.alpha.kubernetes.io/leader\"] | select(.!=null)' -r | jq '.holderIdentity | split(\"_\")[0]' -r"
 
 # pods with colours
 rmalias pods
@@ -75,6 +75,22 @@ ssh-nodes() {
 
 nodeips() {
   k get nodes -o jsonpath={.items[*].status.addresses[?\(@.type==\"ExternalIP\"\)].address}
+}
+
+namesof() {
+  local type=${1:-'pods'}
+  k get --no-headers $type | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
+}
+
+namesofgrep() {
+  local search=${1:-'-'}
+  local type=${2:-'pods'}
+  k get --no-headers -o wide $type | grep $search | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
+}
+
+# output cert as text
+readcert() {
+  k get secrets -o json $@ | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
 }
 
 # add grep to pods/nodes listing, eg:
