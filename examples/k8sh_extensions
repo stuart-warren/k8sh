@@ -150,8 +150,9 @@ alias brokenpods='k get pod --all-namespaces | grep -vE '\''([0-9]+)/\1'\'''
 
 # Runs a busybox container (optionally selecting the a specific node to run on)
 # and shells into it.
-busybox() {
-  delete po/busybox
+toolbox() {
+  delete po/toolbox
+  NODETOUSE="$(get-random-node)"
   OVERRIDE_PARAM=""
   U=""
   if [[ $1 ]]; then
