@@ -57,6 +57,28 @@ alias pod-report="k get pods --all-namespaces --no-headers -o=custom-columns=Sta
 # get pods that are current leaders
 alias leaders="k get ep -o json | jq '.items[].metadata.annotations[\"control-plane.alpha.kubernetes.io/leader\"] | select(.!=null)' -r | jq '.holderIdentity | split(\"_\")[0]' -r"
 
+# get nodes allocateable resources
+alias node-allocateable="kubectl describe nodes | grep -A 2 -e'^Name:' -e'^Allocatable:' -e '^\\s*CPU Requests'"
+
+# select context
+cts() {
+  ct=$(k config get-contexts -o name | fzf)
+  ct $ct
+}
+
+# select namespace
+nss() {
+  ns=$(get namespaces -o custom-columns=NAME:metadata.name --no-headers | fzf)
+  ns $ns
+}
+
+# select pod for logs
+logss() {
+  pod=$(get pods -o custom-columns=NAME:metadata.name --no-headers | fzf)
+  container=$(get pods $pod -o=jsonpath="{.spec.containers[*].name}" | tr ' ' '\n' | fzf)
+  logs $pod -c $container $@
+}
+
 # pods with colours
 rmalias pods
 pods() {
@@ -91,6 +113,20 @@ namesofgrep() {
 # output cert as text
 readcert() {
   k get secrets -o json $@ | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
+}
+
+readkey() {
+  k get secrets -o json $@ | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -text -noout
+}
+
+checkcacert() {
+  openssl verify -trusted <(k get secrets -o json $1 | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout)
+  k get secrets -o json $1 | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -modulus -noout | openssl md5
+  k get secrets -o json $2 | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout | openssl md5
+}
+
+readistiocert() {
+  k get secrets -o json $@ | jq '.data["root-cert.pem"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
 }
 
 # add grep to pods/nodes listing, eg:
