@@ -1,43 +1,10 @@
+#!/usr/bin/env bash
 # run reloadExtensions to reload
 
-# remove alias
-rmalias() {
-  if alias $1 2>/dev/null; then
-    unalias $1
-  fi
-}
 
-# remove function
-rmfunction() {
-  if declare -f -F $1 > /dev/null; then
-    unset -f $1
-  fi
-}
-
-# add highlighting for substrings
-highlight() {
-    declare -A fg_color_map
-    fg_color_map[black]=30
-    fg_color_map[red]=31
-    fg_color_map[green]=32
-    fg_color_map[yellow]=33
-    fg_color_map[blue]=34
-    fg_color_map[magenta]=35
-    fg_color_map[cyan]=36
-
-    fg_c=$(echo -e "\e[1;${fg_color_map[$1]}m")
-    c_rs=$'\e[0m'
-    sed -u s"/$2/$fg_c\0$c_rs/g"
-}
-
-bashwatch() {
-    while true; do clear; $@; sleep 2; done
-}
-
-alias watch="bashwatch"
 
 # Displays all nodes in the cluster including kubernetes version info
-alias nodes="k get nodes -o=custom-columns=Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Health:.status.conditions[*].reason,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory | highlight green 'KubeletReady' | highlight green 'KernelHasNoDeadlock' | highlight green 'KubeletHasNoDiskPressure' | highlight green 'KubeletHasSufficientMemory' | highlight green 'KubeletHasSufficientDisk'"
+alias nodes="k get nodes -o=custom-columns='Name:.metadata.name,IP:.status.addresses[0].address,Kubelet:.status.nodeInfo.kubeletVersion,Taints:.spec.taints[*],STATUS:.status.conditions[?(@.status==\"True\")].type,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory'"
 
 # Force a deletion
 alias deletef="k delete --grace-period=0 --force"
@@ -46,13 +13,13 @@ alias deletef="k delete --grace-period=0 --force"
 alias events="k get events --sort-by='{.lastTimestamp}'"
 
 # get images that pods use in your namespace with a count
-alias pod-images="k get pods --no-headers -o=custom-columns=Images:.spec.containers[*].image | tr ',' '\n' | sort | uniq -c"
+alias pod-images="k get pods --no-headers -o=custom-columns='Images:.spec.containers[*].image' | tr ',' '\n' | sort | uniq -c"
 
 # get pods and their images sorted by image
 alias pods-with-image="k get pods --no-headers -o=go-template --template='{{range .items}}{{\$pod := .metadata.name}}{{range .spec.containers}}{{\$pod}}{{\"\t\"}}{{.name}}{{\"\t\"}}{{.image }}{{\"\n\"}}{{end}}{{end}}' | sort -k 3"
 
 # get overall pod status report
-alias pod-report="k get pods --all-namespaces --no-headers -o=custom-columns=Status:.status.phase | sort | uniq -c | highlight green Running"
+alias pod-report="k get pods --all-namespaces --no-headers -o=custom-columns='Status:.status.phase' | sort | uniq -c"
 
 # get pods that are current leaders
 alias leaders="k get ep -o json | jq '.items[].metadata.annotations[\"control-plane.alpha.kubernetes.io/leader\"] | select(.!=null)' -r | jq '.holderIdentity | split(\"_\")[0]' -r"
@@ -63,82 +30,85 @@ alias node-allocateable="kubectl describe nodes | grep -A 2 -e'^Name:' -e'^Alloc
 # select context
 cts() {
   ct=$(k config get-contexts -o name | fzf)
-  ct $ct
+  ct "$ct"
 }
 
 # select namespace
 nss() {
   ns=$(get namespaces -o custom-columns=NAME:metadata.name --no-headers | fzf)
-  ns $ns
+  ns "$ns"
 }
 
 # select pod for logs
 logss() {
-  pod=$(get pods -o custom-columns=NAME:metadata.name --no-headers | fzf)
-  container=$(get pods $pod -o=jsonpath="{.spec.containers[*].name}" | tr ' ' '\n' | fzf)
-  logs $pod -c $container $@
+  pod=$(get pods --no-headers | fzf | awk '{print $1}')
+  container=$(get pods "$pod" -o=jsonpath="{.spec.containers[*].name}" | tr ' ' '\n' | fzf -1)
+  logs "$pod" -c "$container" "$@"
 }
 
-# pods with colours
-rmalias pods
-pods() {
-  k get pods $@ | highlight green 'Running'
-}
+alias pods='k get pods'
 
 all-pods() {
-  k get pods --all-namespaces $@ | highlight green 'Running'
+  k get pods --all-namespaces "$@"
 }
 
 ssh-nodes() {
-  SSH_ARGS="${@}"
-  k get nodes --no-headers -o=custom-columns=IP:.status.addresses[0].address | \
+  SSH_ARGS="${*}"
+  k get nodes --no-headers -o json | jq '.items[].status.addresses[0].address' -r | \
     xargs -INODE -n1 -P1 sh -c "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ${K8S_SSH_USER-core}@NODE ${SSH_ARGS} | sed -e 's/^/NODE:\t/'"
 }
 
+alias restart-all='k patch --patch "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"updated\":\"$(date +%s)\"}}}}}"'
+
 nodeips() {
-  k get nodes -o jsonpath={.items[*].status.addresses[?\(@.type==\"ExternalIP\"\)].address}
+  k get nodes -o jsonpath='{.items[*].status.addresses[?\(@.type==\"ExternalIP\"\)].address}'
+}
+
+get-all() {
+  k get $(k api-resources --no-headers | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/')
 }
 
 namesof() {
   local type=${1:-'pods'}
-  k get --no-headers $type | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
+  k get --no-headers "$type" | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
 }
 
 namesofgrep() {
   local search=${1:-'-'}
   local type=${2:-'pods'}
-  k get --no-headers -o wide $type | grep $search | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
+  k get --no-headers -o wide "$type" | grep "$search" | awk '{ print $1 }' | tr '\n' ',' | sed 's/,$/\n/'
 }
 
 # output cert as text
 readcert() {
-  k get secrets -o json $@ | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
+  k get secrets -o json "$@" | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
 }
 
 readkey() {
-  k get secrets -o json $@ | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -text -noout
+  k get secrets -o json "$@" | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -text -noout
 }
 
 checkcacert() {
-  openssl verify -trusted <(k get secrets -o json $1 | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout)
-  k get secrets -o json $1 | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -modulus -noout | openssl md5
-  k get secrets -o json $2 | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout | openssl md5
+  openssl verify -trusted <(k get secrets -o json "$1" | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout)
+  k get secrets -o json "$1" | jq '.data["tls.key"]' -r | base64 -d | openssl rsa -in /dev/stdin -modulus -noout | openssl md5
+  k get secrets -o json "$2" | jq '.data["tls.crt"]' -r | base64 -d | openssl x509 -in /dev/stdin -modulus -noout | openssl md5
 }
 
 readistiocert() {
-  k get secrets -o json $@ | jq '.data["root-cert.pem"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
+  k get secrets -o json "$@" | jq '.data["root-cert.pem"]' -r | base64 -d | openssl x509 -in /dev/stdin -text -noout
 }
 
 # add grep to pods/nodes listing, eg:
 # $ pods? -v Running
 # $ nodes? cr2
 # $ pods-with-image? hyperkube
-alias pods?="pods -o wide | grep"
-alias all-pods?="all-pods -o wide | grep"
-alias nodes?="nodes | grep"
-alias pod-images?="pod-images | grep"
-alias pods-with-image?="pods-with-image | grep"
-alias leaders?="leaders | grep"
+alias pods\?="pods -o wide | grep"
+alias all-pods\?="all-pods -o wide | grep"
+alias nodes\?="nodes | grep"
+alias pod-images\?="pod-images | grep"
+alias pods-with-image\?="pods-with-image | grep"
+alias leaders\?="leaders | grep"
+alias get-all\?="get-all | grep"
 
 # Pick a random node in Ready state
 get-random-node() {
@@ -151,59 +121,53 @@ alias brokenpods='k get pod --all-namespaces | grep -vE '\''([0-9]+)/\1'\'''
 # Runs a busybox container (optionally selecting the a specific node to run on)
 # and shells into it.
 toolbox() {
+  local NODENAME=${1-null}
   delete po/toolbox
-  NODETOUSE="$(get-random-node)"
-  OVERRIDE_PARAM=""
-  U=""
-  if [[ $1 ]]; then
-    echo "Restricting pod to node: $1"
-    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$1\", \"serviceAccountName\": \"kube-controller-manager\" } }"
-  else
-    echo "Restricting pod to node: $NODETOUSE"
-    OVERRIDE_PARAM="{ \"spec\": { \"nodeName\": \"$NODETOUSE\", \"serviceAccountName\": \"kube-controller-manager\" } }"
-  fi
-  if [[ $KUSER ]]; then
-    U="--user=$KUSER"
-  fi
-  k $U run -i --tty toolbox --limits='cpu=200m,memory=512Mi' --image=${TOOLBOX_IMAGE-busybox} --restart=Never --overrides="$OVERRIDE_PARAM" -- sh
+  cat <<EOF | k apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox
+spec:
+  containers:
+  - name: toolbox
+    image: mirror-releases.docker.ospcfc.tech.lastmile.com/osp-cfc-platform/toolbox:0.0.4
+    command:
+      - sleep
+      - "3600"
+    volumeMounts:
+    - name: tmp
+      mountPath: /tmp
+    imagePullPolicy: IfNotPresent
+  nodeName: ${NODENAME}
+  restartPolicy: Always
+  volumes:
+  - name: tmp
+    hostPath:
+      path: /tmp
+EOF
 }
 
 # Runs a temporary kube-scheduler
 # Assumes self hosting setup
 temp-scheduler() {
   delete pod/temp-scheduler
-  U=""
-  NODETOUSE="$(get-random-node)"
-  if [[ $1 ]]; then
-    NODETOUSE=$1
-  fi
-  if [[ $KUSER ]]; then
-    U="--user=$KUSER"
-  fi
-  k $U --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl $U create -f -
+  k --namespace kube-system get deployment kube-scheduler -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-scheduler", "namespace": "kube-system", "labels": {"k8s-app": "temp-scheduler"}}}'| jq ".spec.nodeName = \"$(get-random-node)\"" | kubectl create -f -
 }
 
 # Runs a temporary kube-controller-manager
 # Assumes self hosting setup
 temp-controller-manager() {
   delete pod/temp-controller-manager
-  U=""
-  NODETOUSE="$(get-random-node)"
-  if [[ $1 ]]; then
-    NODETOUSE=$1
-  fi
-  if [[ $KUSER ]]; then
-    U="--user=$KUSER"
-  fi
-  k $U --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}' | jq ".spec.nodeName = \"$NODETOUSE\"" | kubectl $U create -f -
+  k --namespace kube-system get deployment kube-controller-manager -o json | jq '.spec.template * {"kind": "Pod", "apiVersion": "v1", "metadata": {"name": "temp-controller-manager", "namespace": "kube-system", "labels": {"k8s-app": "temp-controller-manager"}}}' | jq ".spec.nodeName = \"$(get-random-node)\"" | kubectl create -f -
 }
 
 # removes the temporary scheduler and controller manager when not required
 delete-temp-components() {
   U=""
-  if [[ $KUSER ]]; then
+  if [[ "$KUSER" ]]; then
     U="--user=$KUSER"
   fi
-  delete $U pod/temp-scheduler
-  delete $U pod/temp-controller-manager
+  delete "$U" pod/temp-scheduler
+  delete "$U" pod/temp-controller-manager
 }
